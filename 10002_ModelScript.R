@@ -3,6 +3,7 @@
 require(ggplot2)
 require(plotly)
 require(corrplot)
+require(PerformanceAnalytics)
 
 ## Exploratory data analysis.
 
@@ -33,5 +34,8 @@ summary(raw_)
 # We know that id's are not a variable, so we can dispose that.
 
 # Visulise variable relationships.
-plot(raw_)
-corrplot(round(cor(raw_), 2), method = "circle")
+chart.Correlation(raw_)
+
+
+# We can see that the ID variable isn't correlated with anything. (Also identifiers in general are not required).
+# It is also evident that there are a number of factor variables.
