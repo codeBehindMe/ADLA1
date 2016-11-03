@@ -68,7 +68,7 @@ levels(as.factor(dt_$bedrooms))
 ggplot(dt_,aes(as.factor(dt_$bedrooms))) + geom_bar(colour="black",aes(fill = ..count..)) + scale_fill_gradient(low="green",high="red") + xlab("Number of Bedrooms") + ylab("Count") + ggtitle("Number of Bedrooms distribution")
 
 # Let's look at how the price varies with the number of rooms.
-ggplot(dt_,aes(as.factor(dt_$bedrooms),dt_$price)) + geom_boxplot(aes(fill=as.factor(dt_$bedrooms))) + guides(fill=FALSE) + xlab("Number of Rooms") + ylab("Price") + ggtitle("Price ~ Number of Bedrooms")
+ggplot(dt_,aes(as.factor(dt_$bedrooms),dt_$price)) + geom_boxplot(aes(fill=as.factor(dt_$bedrooms))) + guides(fill=FALSE) + xlab("Number of Rooms") + ylab("Price") + ggtitle("Price ~ Number of Bedrooms") + scale_y_continuous(labels = scales::comma)
 
 # Seems like the mean price steadily increases from 1 to about 6 then starts dropping till 9 where it jumps up.
 # No rooms seems to be quite high too. Maybe studio apartments ?
@@ -88,7 +88,8 @@ ggplot(dt_,aes(dt_$bathrooms)) + geom_histogram(colour="black",aes(fill = ..coun
 dt_$bathrooms[unique(dt_$bathrooms)] # Looks like there are 26, but this could definitely be considered a factor.
 
 # Revisualise as factor.
-ggplot(dt_,aes(as.factor(dt_$bathrooms))) + geom_bar(colour="black",aes(fill = ..count..)) + scale_fill_gradient(low="green",high="red") + xlab("Number of Bathrooms") + ylab("Count") + ggtitle("Number of Bathrooms distribution")
+ggplot(dt_, aes(as.factor(dt_$bathrooms))) + geom_bar(colour = "black", aes(fill = ..count..)) + scale_fill_gradient(low = "green", high = "red") + xlab("Number of Bathrooms") + ylab("Count") + ggtitle("Number of Bathrooms distribution")
+# Seems suprisingly that 2.5 bathrooms seem to be the most common.
 
 # Let's see how this factored feature responds with price.
 ggplot(dt_,aes(as.factor(dt_$bathrooms),dt_$price)) + geom_boxplot(aes(fill=as.factor(dt_$bathrooms))) + guides(fill=FALSE) + xlab("Number of Bathrooms") + ylab("Price") + ggtitle("Price ~ Number of Bathrooms")
@@ -113,8 +114,62 @@ udf_fe_FractionRooms <- function(x,return=c("whole","fraction")){
     
 }
 
+udf_utils_MultiPlot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
 
-fe_$fullBathroom <- apply(as.data.frame(dt_$bathrooms),1,udf_fe_FractionRooms,return="whole")
+
+    #####################################################
+    # Multiplot for ggplot2                             
+    # REFERENCE: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/            
+    #####################################################
+
+
+    # Multiple plot function
+    #
+    # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+    # - cols:   Number of columns in layout
+    # - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+    #
+    # If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+    # then plot 1 will go in the upper left, 2 will go in the upper right, and
+    # 3 will go all the way across the bottom.
+    library(grid)
+
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+
+    numPlots = length(plots)
+
+    # If layout is NULL, then use 'cols' to determine layout
+    if (is.null(layout)) {
+        # Make the panel
+        # ncol: Number of columns of plots
+        # nrow: Number of rows needed, calculated from # of cols
+        layout <- matrix(seq(1, cols * ceiling(numPlots / cols)),
+                    ncol = cols, nrow = ceiling(numPlots / cols))
+    }
+
+    if (numPlots == 1) {
+        print(plots[[1]])
+
+    } else {
+        # Set up the page
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+        # Make each plot, in the correct location
+        for (i in 1:numPlots) {
+            # Get the i,j matrix positions of the regions that contain this subplot
+            matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+            print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+        }
+    }
+}
+
+
+fe_$fullBathroom <- apply(as.data.frame(dt_$bathrooms), 1, udf_fe_FractionRooms, return = "whole")
+
 fe_$halfBathroom <- apply(as.data.frame(dt_$bathrooms), 1, function(x) {
          y = udf_fe_FractionRooms(x, return = "fraction") 
              if (y == 0.5) {
@@ -133,6 +188,15 @@ fe_$quarterBathroom <- apply(as.data.frame(dt_$bathrooms), 1, function(x) {
         }
 })
 
+fe_$threeQuarterBathroom <- apply(as.data.frame(dt_$bathrooms), 1, function(x) {
+    y = udf_fe_FractionRooms(x, return = "fraction")
+    if (y == 0.75) {
+        return(1)
+    } else {
+        return(0)
+    }
+})
+
 
 
 ## Let's look at the full bathrooms
@@ -140,20 +204,143 @@ unique(fe_$fullBathroom)
 
 # Barplot
 # Full
-ggplot(fe_,aes(as.factor(fe_$fullBathroom))) + geom_bar(colour="black",aes(fill = ..count..)) + scale_fill_gradient(low="green",high="red") + xlab("Number of Full Bathrooms") + ylab("Count") + ggtitle("Number of Full Bathrooms distribution")
+p1_ <- ggplot(fe_,aes(as.factor(fe_$fullBathroom))) + geom_bar(colour="black",aes(fill = ..count..)) + scale_fill_gradient(low="green",high="red") + xlab("Number of Full Bathrooms") + ylab("Count") + ggtitle("Number of Full Bathrooms distribution")
 
 # Half
-ggplot(fe_,aes(as.factor(fe_$halfBathroom))) + geom_bar(colour="black",aes(fill = ..count..)) + scale_fill_gradient(low="green",high="red") + xlab("Number of Half Bathrooms") + ylab("Count") + ggtitle("Number of Half Bathrooms distribution")
+p2_ <- ggplot(fe_,aes(as.factor(fe_$halfBathroom))) + geom_bar(colour="black",aes(fill = ..count..)) + scale_fill_gradient(low="green",high="red") + xlab("Half Bathrooms") + ylab("Count") + ggtitle("Half Bathrooms distribution") + scale_x_discrete(labels=c("No Half Bathrooms","Has Half Bathrooms"))
 
 # Quarter
-ggplot(fe_,aes(as.factor(fe_$quarterBathroom))) + geom_bar(colour="black",aes(fill = ..count..)) + scale_fill_gradient(low="green",high="red") + xlab("Number of Quarter Bathrooms") + ylab("Count") + ggtitle("Number of Quarter Bathrooms distribution")
+p3_ <- ggplot(fe_, aes(as.factor(fe_$quarterBathroom))) + geom_bar(colour = "black", aes(fill = ..count..)) + scale_fill_gradient(low = "green", high = "red") + xlab("Quarter Bathrooms") + ylab("Count") + ggtitle("Quarter Bathrooms distribution") + scale_x_discrete(labels=c("No Quarter Bathrooms","Has Quarter Bathrooms"))
+
+# Three Quarter
+p4_ <- ggplot(fe_, aes(as.factor(fe_$threeQuarterBathroom))) + geom_bar(colour = "black", aes(fill = ..count..)) + scale_fill_gradient(low = "green", high = "red") + xlab("Three Quarter Bathrooms") + ylab("Count") + ggtitle("Three Quarter Bathrooms distribution") + scale_x_discrete(labels = c("No Three Quarter Bathrooms", "Has Three Quarter Bathrooms"))
+
+udf_utils_MultiPlot(p1_,p2_,p3_,p4_,cols = 2)
 
 # Let's look with respect to price
 
 ggplot(fe_,aes(as.factor(fe_$fullBathroom),fe_$price)) + geom_boxplot(aes(fill=as.factor(fe_$fullBathroom))) + guides(fill=FALSE) + xlab("Number of Full Bathrooms") + ylab("Price") + ggtitle("Price ~ Number of Full Bathrooms") + scale_y_continuous(labels=scales::comma)
 # We can see a clear trend up except when it's 8 where it drops.
 
-ggplot(fe_,aes(as.factor(fe_$fullBathroom),fe_$price,colour = as.factor(fe_$halfBathroom))) + geom_point() + scale_colour_discrete(name="Half Bathrooms",labels=c("No half bathrooms","Has half Bathrooms")) + scale_y_continuous(name = "Price",labels = scales::comma) + xlab("Full Bathroom Count")
+
+# It is unlikely that the boolean of has half,quarter,three quarter bathrooms will show a trend. Instead let's use the entire dataset split by full bathrooms and then color encoded by each of which.
+# Half 
+p1_ <- ggplot(fe_, aes(as.factor(fe_$fullBathroom), fe_$price, colour = as.factor(fe_$halfBathroom))) + geom_boxplot() + scale_colour_discrete(name = "Half Bathrooms", labels = c("No half bathrooms", "Has half Bathrooms")) + scale_y_continuous(name = "Price", labels = scales::comma) + xlab("Full Bathroom Count")
+
+# Quarter
+p2_ <- ggplot(fe_, aes(as.factor(fe_$fullBathroom), fe_$price, colour = as.factor(fe_$quarterBathroom))) + geom_boxplot() + scale_colour_discrete(name = "Quarter Bathrooms", labels = c("No Quarter bathrooms", "Has Quarter Bathrooms")) + scale_y_continuous(name = "Price", labels = scales::comma) + xlab("Full Bathroom Count")
+
+# Three quarter
+p3_ <- p2_ <- ggplot(fe_, aes(as.factor(fe_$fullBathroom), fe_$price, colour = as.factor(fe_$threeQuarterBathroom))) + geom_boxplot() + scale_colour_discrete(name = "Three Quarter Bathrooms", labels = c("No Three Quarter bathrooms", "Has Three Quarter Bathrooms")) + scale_y_continuous(name = "Price", labels = scales::comma) + xlab("Full Bathroom Count")
+
+udf_utils_MultiPlot(p1_, p2_, p3_)
+
+# Generally speaking it seems the mean price of the ones with a incomplete bathroom in addition to bathrooms is higher. Which is expected.
 
 
+# Squarfoot living #
+####################
 
+summary(dt_$sqft_living)
+ggplot(dt_, aes(dt_$sqft_living)) + geom_histogram(colour = "black", aes(fill = ..count..), bins = 50) + scale_fill_gradient(low = "green", high = "red") + scale_x_continuous(name = "Squarefoot Living", labels = scales::comma) + scale_y_continuous(name = "Count", labels = scales::comma) + ggtitle("Squarefoot living Histogram")
+
+# Seems like it's heaily skewed to the right.
+
+
+# Let's look at it's correlation to the price.
+ggplot(dt_, aes(dt_$sqft_living, dt_$price)) + geom_point(aes(colour = dt_$price)) + scale_x_continuous(name = "Squarefoot Living", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot living") + scale_colour_gradient(low = "blue", high = "red") + guides(colour = FALSE) + geom_smooth(method = "lm")
+
+# Seems like there is a positive trend with the increasing of square footage.
+
+# Let's see if we can find some clear groups with the variables we have found so far.
+
+# Full Bathrooms
+p1_ <- ggplot(fe_, aes(fe_$sqft_living, fe_$price)) + geom_point(aes(colour = as.factor(fe_$fullBathroom))) + scale_x_continuous(name = "Squarefoot Living", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot living") + scale_color_discrete(guide = guide_legend(title = "Number of Full Bathrooms"))
+
+# Half Bathrooms
+p2_ <- ggplot(fe_, aes(fe_$sqft_living, fe_$price)) + geom_point(aes(colour = as.factor(fe_$halfBathroom))) + scale_x_continuous(name = "Squarefoot Living", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot living") + scale_color_discrete(guide = guide_legend(title = "Half Bathrooms"), labels = c("No Half Bathrooms", "Has Half Bathrooms"))
+
+# Quarter Bathrooms
+
+p3_ <- ggplot(fe_, aes(fe_$sqft_living, fe_$price)) + geom_point(aes(colour = as.factor(fe_$quarterBathroom))) + scale_x_continuous(name = "Squarefoot Living", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot living") + scale_color_discrete(guide = guide_legend(title = "Quarter Bathrooms"), labels = c("No Quarter Bathrooms", "Has Quarter Bathrooms"))
+
+
+# Three Quarter Bathrooms
+
+p4_ <- ggplot(fe_, aes(fe_$sqft_living, fe_$price)) + geom_point(aes(colour = as.factor(fe_$threeQuarterBathroom))) + scale_x_continuous(name = "Squarefoot Living", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot living") + scale_color_discrete(guide = guide_legend(title = "Three Quarter Bathrooms"), labels = c("No Three Quarter Bathrooms", "Has Three Quarter Bathrooms"))
+
+udf_utils_MultiPlot(p1_, p2_, p3_, p4_, cols = 2)
+
+# No clearly defined groups can be seen yet.
+
+# Squarefoot lot # 
+##################
+
+summary(dt_$sqft_lot)
+ggplot(dt_, aes(dt_$sqft_lot)) + geom_histogram(colour = "black", aes(fill = ..count..), bins = 50) + scale_fill_gradient(low = "green", high = "red") + scale_x_continuous(name = "Squarefoot Lot", labels = scales::comma) + scale_y_continuous(name = "Count", labels = scales::comma) + ggtitle("Squarefoot Lot Histogram")
+# Seems like there is a lot of skewness present. Try density.
+ggplot(dt_, aes(dt_$sqft_lot)) + geom_density() + scale_x_continuous(name = "Squarefoot Lot", labels = scales::comma) + scale_y_continuous(name = "Count", labels = scales::comma) + ggtitle("Squarefoot Lot Histogram")
+# Seems to be extremely right skewed. 
+
+# Let's check correlatiopn with the price
+ggplot(dt_, aes(dt_$sqft_lot, dt_$price)) + geom_point(aes(colour = dt_$price)) + scale_x_continuous(name = "Squarefoot Lot", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot Lot") + scale_colour_gradient(low = "blue", high = "red") + guides(colour = FALSE) + geom_smooth(method = "lm")
+
+# Seems like there are almost two correlations one very sharp and one very shallow.
+
+
+# Let's do the same as we did before and check some groups with existing factors.
+
+
+# Full Bathrooms
+p1_ <- ggplot(fe_, aes(fe_$sqft_lot, fe_$price)) + geom_point(aes(colour = as.factor(fe_$fullBathroom))) + scale_x_continuous(name = "Squarefoot Lot", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot Lot") + scale_color_discrete(guide = guide_legend(title = "Number of Full Bathrooms"))
+
+# Half Bathrooms
+p2_ <- ggplot(fe_, aes(fe_$sqft_lot, fe_$price)) + geom_point(aes(colour = as.factor(fe_$halfBathroom))) + scale_x_continuous(name = "Squarefoot Lot", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot Lot") + scale_color_discrete(guide = guide_legend(title = "Half Bathrooms"), labels = c("No Half Bathrooms", "Has Half Bathrooms"))
+
+# Quarter Bathrooms
+
+p3_ <- ggplot(fe_, aes(fe_$sqft_lot, fe_$price)) + geom_point(aes(colour = as.factor(fe_$quarterBathroom))) + scale_x_continuous(name = "Squarefoot Lot", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot Lot") + scale_color_discrete(guide = guide_legend(title = "Quarter Bathrooms"), labels = c("No Quarter Bathrooms", "Has Quarter Bathrooms"))
+
+
+# Three Quarter Bathrooms
+
+p4_ <- ggplot(fe_, aes(fe_$sqft_lot, fe_$price)) + geom_point(aes(colour = as.factor(fe_$threeQuarterBathroom))) + scale_x_continuous(name = "Squarefoot Lot", labels = scales::comma) + scale_y_continuous(name = "Price", labels = scales::comma) + ggtitle("Price ~ Squarefoot Lot") + scale_color_discrete(guide = guide_legend(title = "Three Quarter Bathrooms"), labels = c("No Three Quarter Bathrooms", "Has Three Quarter Bathrooms"))
+
+udf_utils_MultiPlot(p1_, p2_, p3_, p4_, cols = 2)
+
+# As expected no real groupings.
+
+# Waterfront #
+##############
+summary(dt_$waterfront)
+
+# Seems to be a factor variable, let's plot it as factor.
+ggplot(dt_, aes(as.factor(dt_$waterfront))) + geom_bar() + ggtitle("Waterfront Properties Proportion") + scale_x_discrete(name = "Waterfront", labels = c("Not waterfront", "Is waterfront")) + scale_y_continuous(name = "Waterfront", labels = scales::comma)
+
+# Let's look at correlation to price
+
+ggplot(dt_, aes(y = dt_$price, x = as.factor(dt_$waterfront))) + geom_boxplot() + ggtitle("Price ~ Waterfront property") + scale_y_continuous(name = "Price", labels = scales::comma) + scale_x_discrete(name = "Waterfront", labels = c("Not Waterfront", "Is Waterfront"))
+# The mean of waterfront houses are clearlier higher.
+
+# Condition #
+#############
+
+summary(dt_$condition)
+
+# Seems like this is also a factor variable.
+ggplot(dt_, aes(as.factor(dt_$condition))) + geom_bar() + ggtitle("Proprtion of Condition in houses") + scale_x_discrete(name = "Condition") + scale_y_continuous(name = "Count", labels = scales::comma)
+
+# Seems to be slightly skewed to the left.
+
+# Let's look with respect to price.
+ggplot(dt_, aes(as.factor(dt_$condition), dt_$price)) + geom_boxplot(aes(fill = as.factor(dt_$condition))) + ggtitle("Price ~ Condition") + scale_x_discrete(name = "Condition") + scale_y_continuous(name = "Price", labels = scales::comma) + guides(fill = FALSE)
+
+# Seems higher as the grade improves, but many outliers in grade 3.
+
+# Grade # 
+#########
+
+summary(dt_$grade)
+
+# This also seems to be like a factor variable. 
+ggplot(dt_,aes(as.factor(dt_$grade))) + geom_bar()
