@@ -6,7 +6,9 @@ require(corrplot)
 require(PerformanceAnalytics)
 require(scales)
 
-## Exploratory data analysis.
+################################
+## Exploratory data analysis. ##
+################################
 
 # Set workign directory
 setwd("C:/Users/aaron/OneDrive/Documents/Monash Data Science/Applied Data Analysis/A1")
@@ -322,6 +324,8 @@ ggplot(dt_, aes(as.factor(dt_$waterfront))) + geom_bar() + ggtitle("Waterfront P
 ggplot(dt_, aes(y = dt_$price, x = as.factor(dt_$waterfront))) + geom_boxplot() + ggtitle("Price ~ Waterfront property") + scale_y_continuous(name = "Price", labels = scales::comma) + scale_x_discrete(name = "Waterfront", labels = c("Not Waterfront", "Is Waterfront"))
 # The mean of waterfront houses are clearlier higher.
 
+fe_$waterfrontFactor <- as.factor(fe_$waterfront)
+
 # Condition #
 #############
 
@@ -337,10 +341,174 @@ ggplot(dt_, aes(as.factor(dt_$condition), dt_$price)) + geom_boxplot(aes(fill = 
 
 # Seems higher as the grade improves, but many outliers in grade 3.
 
+
+fe_$conditionFactor <- as.factor(fe_$condition)
+
 # Grade # 
 #########
 
 summary(dt_$grade)
 
 # This also seems to be like a factor variable. 
-ggplot(dt_,aes(as.factor(dt_$grade))) + geom_bar()
+ggplot(dt_,aes(as.factor(dt_$grade),fill = ..count..)) + geom_bar() + ggtitle("Proportion of Grade") + scale_x_discrete(name = "Grade") + scale_y_continuous(name = "Count",labels = scales::comma) + scale_fill_continuous(low = "green",high = "red")
+# Seems like a normal distribution of proportions.
+
+# Let's look at its behaviour with respect to the target.
+
+ggplot(dt_,aes(as.factor(dt_$grade),dt_$price)) + geom_boxplot(aes(fill=as.factor(dt_$grade))) + ggtitle("Price ~ Grade") + scale_x_discrete(name = "Grade") + scale_y_continuous(name= "Price",labels = scales::comma) + guides(fill = FALSE)
+# Definitely increasing mean price with the grade. Non linearly but given that it's a factor we can't really force transform.
+
+fe_$gradeFactor <- as.factor(fe_$grade)
+
+# Year built #
+##############
+
+# This could be either factor or continuous, but given our data set this might fit a factor, let's try both.
+summary(dt_$yr_built)
+
+p1_ <- ggplot(dt_,aes(dt_$yr_built,fill = ..count..)) + geom_histogram(bins = 50) + scale_fill_continuous(low = "green",high="red") + guides(fill=FALSE) + scale_x_continuous(name = "Year Built") + ggtitle("Year Built Histogram")
+
+p2_ <- ggplot(dt_,aes(as.factor(dt_$yr_built),fill = ..count..)) + geom_bar() + scale_fill_continuous(low = "green",high ="red") + guides(fill=FALSE) + scale_x_discrete("Year Built") + theme(axis.text.x = element_text(angle = 45, hjust= 0)) + ggtitle("Year Built Proportions")
+
+
+udf_utils_MultiPlot(p1_,p2_)
+
+# Barplot seems to be more suitable, however we cant really tell from the multiplot which year has the higest. Let's use our javascript based library to visualise the barplot.
+ggplotly(p2_)
+
+# Now we can see the largest number of houses were built in 2014, 250 houses. While the smalles number of houses were built in 1934, which was 9.
+
+# Let's look at its correlation to the target variable. Let's use boxplots since it's better suited to be a factor.
+ggplot(dt_,aes(as.factor(dt_$yr_built),dt_$price)) + geom_boxplot(aes(fill = as.factor(dt_$yr_built))) + guides(fill = FALSE) + ggtitle("Price ~ Year Built") + scale_x_discrete(name = "Year Bult") + theme(axis.text.x = element_text(angle = 45)) + scale_y_continuous(name = "Price", labels = scales::comma)
+
+# The means seem to be bouncing up and down, but cant really distinguish a trend. 
+
+fe_$yr_builtFactor <- as.factor(fe_$yr_built)
+
+
+# Zipcode #
+###########
+
+summary(dt_$zipcode)
+# Intuitively we know that zipcode is a factor.
+length(unique(dt_$zipcode))
+# There are 70 distinct zipcodes. 
+
+
+# Let's plot their proportions.
+ggplot(dt_,aes(as.factor(dt_$zipcode), fill = ..count..)) + geom_bar() + guides(fill=FALSE) + ggtitle("Zipcode Proportions") + scale_x_discrete(name = "Zipcode") + theme(axis.text.x = element_text(angle = 90)) + scale_y_continuous(name = "Count", labels = scales::comma) + scale_fill_continuous(low = "green" ,high = "red")
+
+# No real distribution can be seen, seems somewhat scattered.
+
+# Let's look in terms of price.
+ggplot(dt_,aes(as.factor(dt_$zipcode),dt_$price)) + geom_boxplot(aes(fill=as.factor(dt_$zipcode))) + guides(fill=FALSE) + ggtitle("Price ~ Zipcode") + scale_x_discrete(name = "Zipcode") + theme(axis.text.x = element_text(angle = 90)) + scale_y_continuous(name = "Price", labels = scales::comma) 
+# As expected, we can see mean prices for different zipcodes vary. But not in a trend, since the underlying distance between the zipcodes is hidden.
+
+fe_$zipcodeFactor <- as.factor(fe_$zipcode)
+
+###############
+## MODELLING ##
+###############
+
+# Now we started with our original dataset with 9 features. And after casting to the data types and some minor feature engineering, we have 19 features.
+
+# Now we can start with some models.
+
+## Methodology ##
+#################
+
+# We will implement only linear models in this case, which is what is required by the assignment.
+# We will use the minimisation of Root Mean Squared Error as the evaluation objective. 
+# The best model performance will be the one that has the lowest Root Mean Squared Error on the test sample.
+# Standard model comparison statistics will be utilised to compare the models.
+
+udf_utils_castFlexibleDataFrame <- function(object) {
+    
+    # Utility function that coerces vectors, dataframes, matrices and other enumerable types to data frame.
+    
+    cNames_ <- colnames(object) # get object column names.
+    dfObj_ <- as.data.frame(object) # cast object as data frame.
+    
+    if (is.null(cNames_)) {
+        # if no column names assign generic.
+        for (i in 1:length(dfObj_)) {
+            colnames(dfObj_)[i] <- paste0("c", i)
+        }
+    }
+    return(dfObj_)
+}
+
+udf_utils_rootMeanSquareError <- function(predVals, actVals) {
+    
+    # this function returns teh root mean square error of predicted values and actual values. 
+    
+    predVals <- udf_utils_castFlexibleDataFrame(predVals)
+    actVals <- udf_utils_castFlexibleDataFrame(actVals)
+    
+    if (nrow(predVals) != nrow(actVals)) {
+        stop("differring predictions and actual values.")
+    }
+    
+    eW_ <- (sum((predVals - actVals) ^ 2)) / 2
+    
+    eRMS_ <- sqrt((2 * eW_) / nrow(predVals))
+    
+    return(eRMS_)
+    
+}
+
+# import our test dataset 
+ts_ <- read.csv("dev.csv")
+ts_ <- ts_[,-1] # Remove the ID column.
+
+# Let's make a matrix to keep a track of the RMSEs
+errMtx_ <- matrix(c("Model","TrainingError","TestError"),nrow = 1,ncol = 3)
+
+# Let's set our baseline. Let's use mean prediction and calculate training and test RMSE.
+ 
+mdlName_ <- "Mean Model"
+mdlTrRmse <- udf_utils_rootMeanSquareError(rep(mean(dt_$price),times = length(dt_$price)),dt_$price)
+mdlTsRmse <- udf_utils_rootMeanSquareError(rep(mean(dt_$price),times = length(ts_$price)),ts_$price)
+
+# Add to error matrix.
+errMtx_ <- rbind(errMtx_,c(mdlName_,mdlTrRmse,mdlTsRmse))
+
+
+udf_utils_ModelScoreHelper <- function(model,modelName="MyModel",trainFeature,testFeature,trainLabel,testLabel,trackMatrix=NULL,showResult=TRUE){
+    
+    # This function helps generate RMSE from test and train and also storing it in teh matrix.
+    trRMSE_ <- udf_utils_rootMeanSquareError(predict(model,trainFeature),trainLabel)
+    tsRMSE_ <- udf_utils_rootMeanSquareError(predict(model,testFeature),testLabel)
+    
+    if(!is.null(trackMatrix)){
+        trackMatrix <- rbind(trackMatrix,c(modelName,trRMSE_,tsRMSE_))
+    }
+    
+    if(showResult){
+        print(paste("Training Set RMSE:",trRMSE_,sep = " "))
+        print(paste("Test Set RMSE:",tsRMSE_,sep = " "))
+    }
+    
+    return(trackMatrix)
+}
+
+# Let's cut into our linear model with a simple model based of the original dataset.
+mdl_1 <- lm(price ~ .,data = dt_)
+
+# Get the objectives.
+errMtx_ <- udf_utils_ModelScoreHelper(mdl_1,"Cut In",dt_[,-1],ts_[,-1],dt_$price,ts_$price,trackMatrix = errMtx_)  
+
+# Not bad. 45 % imrpovement in RMSE. 
+
+
+# Now let's use our feature engineered dataset to develop the model.
+# We will need to develop a function to transform the base dataset to our feature engineered dataset.
+
+
+
+
+
+
+
+
+
