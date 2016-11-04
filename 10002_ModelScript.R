@@ -11,7 +11,7 @@ require(scales)
 ################################
 
 # Set workign directory
-setwd("C:/Users/aaron/OneDrive/Documents/Monash Data Science/Applied Data Analysis/A1")
+#setwd("C:/Users/aaron/OneDrive/Documents/Monash Data Science/Applied Data Analysis/A1")
 
 
 # Read in the data
@@ -500,15 +500,96 @@ errMtx_ <- udf_utils_ModelScoreHelper(mdl_1,"Cut In",dt_[,-1],ts_[,-1],dt_$price
 
 # Not bad. 45 % imrpovement in RMSE. 
 
-
 # Now let's use our feature engineered dataset to develop the model.
 # We will need to develop a function to transform the base dataset to our feature engineered dataset.
 
+# First let's do a transformation that's just a simple casting of known factor features. 
+udf_fe_intern_FactorKnowFeatures <- function(dataSet){
+    
+    # Convert's known values to factors.
+    
+    dataSet[,'bedrooms'] <- as.factor(dataSet[,'bedrooms'])
+    dataSet[,'bathrooms'] <- as.factor(dataSet[,'bathrooms'])
+    dataSet[,'waterfront'] <- as.factor(dataSet[,'waterfront'])
+    dataSet[,'condition'] <- as.factor(dataSet[,'condition'])
+    dataSet[,'grade'] <- as.factor(dataSet[,'grade'])
+    dataSet[,'yr_built'] <- as.factor(dataSet[,'yr_built'])
+    dataSet[,'zipcode'] <- as.factor(dataSet[,'zipcode'])
+    
+    return(dataSet)
+}
+
+mdl_2 <- lm(price ~ .,data = udf_fe_intern_FactorKnowFeatures(dt_))
+
+summary(mdl_2)
+
+fe_tr <- udf_fe_intern_FactorKnowFeatures(dt_)
+fe_ts <- udf_fe_intern_FactorKnowFeatures(ts_)
+
+errMtx_ <- udf_utils_ModelScoreHelper(mdl_2,"Factorised",trainFeature = fe_tr[,-1],testFeature = fe_ts[,-1],trainLabel = fe_tr$price,testLabel = fe_ts$price,trackMatrix = errMtx_)
+
+# The test set RMSE is down to 144xxx about a 30% improvement over our cut in model.
+# Now we know that casting somerthing as a factor will transpose the matrix into a series of booleans for each factor level. 
+# Let's see if we can augment and help the model out a bit by augmenting the bathrooms.
 
 
+udf_fe_inter_DescribeBathRoomFeatures <- function(dataSet){
+    
+    dataSet[,'fullBathroom'] <- apply(as.data.frame(dataSet[,'bathrooms']), 1, udf_fe_FractionRooms, return = "whole")
+    
+    dataSet[,'halfBathroom'] <- apply(as.data.frame(dataSet[,'bathrooms']), 1, function(x) {
+        y = udf_fe_FractionRooms(x, return = "fraction") 
+        if (y == 0.5) {
+            return(1)
+        } else{
+            return(0)
+        }
+    })
+    
+    dataSet[,'quarterBathroom'] <- apply(as.data.frame(dataSet[,'bathrooms']), 1, function(x) {
+        y = udf_fe_FractionRooms(x, return = "fraction")
+        if (y == 0.25) {
+            return(1)
+        } else{
+            return(0)
+        }
+    })
+    
+    dataSet[,'threeQuarterBathroom'] <- apply(as.data.frame(dataSet[,'bathrooms']), 1, function(x) {
+        y = udf_fe_FractionRooms(x, return = "fraction")
+        if (y == 0.75) {
+            return(1)
+        } else {
+            return(0)
+        }
+    })
+    
+    
+    dataSet[,'bedrooms'] <- as.factor(dataSet[,'bedrooms'])
+    dataSet[,'bathrooms'] <- as.factor(dataSet[,'bathrooms'])
+    dataSet[,'waterfront'] <- as.factor(dataSet[,'waterfront'])
+    dataSet[,'condition'] <- as.factor(dataSet[,'condition'])
+    dataSet[,'grade'] <- as.factor(dataSet[,'grade'])
+    dataSet[,'yr_built'] <- as.factor(dataSet[,'yr_built'])
+    dataSet[,'zipcode'] <- as.factor(dataSet[,'zipcode'])
+    
+    
+    # dataSet[,'fullBathroom'] <- as.factor(dataSet[,'fullBathroom'])
+    # dataSet[,'halfBathroom'] <- as.factor(dataSet[,'halfBathroom'])
+    # dataSet[,'quarterBathroom'] <- as.factor(dataSet[,'quarterBathroom'])
+    # dataSet[,'threeQuarterBathroom'] <- as.factor(dataSet[,'threeQuarterBathroom'])
+    
+    
+    return(dataSet)
+    
+}
 
 
+# Let's prepare the data
+fe_tr <- udf_fe_inter_DescribeBathRoomFeatures(dt_)
+fe_ts <- udf_fe_inter_DescribeBathRoomFeatures(ts_)
+
+mdl_3 <- lm(price ~ .,data =fe_tr)
 
 
-
-
+errMtx_ <- udf_utils_ModelScoreHelper(mdl_3,"BathroomSplit",trainFeature = fe_tr[,-1],testFeature = fe_ts[,-1],trainLabel = fe_tr$price,testLabel = fe_ts$price,trackMatrix = errMtx_)
