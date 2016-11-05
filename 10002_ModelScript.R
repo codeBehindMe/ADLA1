@@ -11,7 +11,7 @@ require(scales)
 ################################
 
 # Set workign directory
-#setwd("C:/Users/aaron/OneDrive/Documents/Monash Data Science/Applied Data Analysis/A1")
+setwd("C:/Users/aaron/OneDrive/Documents/Monash Data Science/Applied Data Analysis/A1")
 
 
 # Read in the data
@@ -94,7 +94,7 @@ ggplot(dt_, aes(as.factor(dt_$bathrooms))) + geom_bar(colour = "black", aes(fill
 # Seems suprisingly that 2.5 bathrooms seem to be the most common.
 
 # Let's see how this factored feature responds with price.
-ggplot(dt_,aes(as.factor(dt_$bathrooms),dt_$price)) + geom_boxplot(aes(fill=as.factor(dt_$bathrooms))) + guides(fill=FALSE) + xlab("Number of Bathrooms") + ylab("Price") + ggtitle("Price ~ Number of Bathrooms")
+ggplot(dt_,aes(as.factor(dt_$bathrooms),dt_$price)) + geom_boxplot(aes(fill=as.factor(dt_$bathrooms))) + guides(fill=FALSE) + xlab("Number of Bathrooms") + ylab("Price") + ggtitle("Price ~ Number of Bathrooms") + scale_y_continuous(name = "Price",labels = scales::comma)
 # The general trend seems to be up.
 
 
@@ -233,7 +233,7 @@ p1_ <- ggplot(fe_, aes(as.factor(fe_$fullBathroom), fe_$price, colour = as.facto
 p2_ <- ggplot(fe_, aes(as.factor(fe_$fullBathroom), fe_$price, colour = as.factor(fe_$quarterBathroom))) + geom_boxplot() + scale_colour_discrete(name = "Quarter Bathrooms", labels = c("No Quarter bathrooms", "Has Quarter Bathrooms")) + scale_y_continuous(name = "Price", labels = scales::comma) + xlab("Full Bathroom Count")
 
 # Three quarter
-p3_ <- p2_ <- ggplot(fe_, aes(as.factor(fe_$fullBathroom), fe_$price, colour = as.factor(fe_$threeQuarterBathroom))) + geom_boxplot() + scale_colour_discrete(name = "Three Quarter Bathrooms", labels = c("No Three Quarter bathrooms", "Has Three Quarter Bathrooms")) + scale_y_continuous(name = "Price", labels = scales::comma) + xlab("Full Bathroom Count")
+p3_ <- ggplot(fe_, aes(as.factor(fe_$fullBathroom), fe_$price, colour = as.factor(fe_$threeQuarterBathroom))) + geom_boxplot() + scale_colour_discrete(name = "Three Quarter Bathrooms", labels = c("No Three Quarter bathrooms", "Has Three Quarter Bathrooms")) + scale_y_continuous(name = "Price", labels = scales::comma) + xlab("Full Bathroom Count")
 
 udf_utils_MultiPlot(p1_, p2_, p3_)
 
@@ -317,11 +317,11 @@ udf_utils_MultiPlot(p1_, p2_, p3_, p4_, cols = 2)
 summary(dt_$waterfront)
 
 # Seems to be a factor variable, let's plot it as factor.
-ggplot(dt_, aes(as.factor(dt_$waterfront))) + geom_bar() + ggtitle("Waterfront Properties Proportion") + scale_x_discrete(name = "Waterfront", labels = c("Not waterfront", "Is waterfront")) + scale_y_continuous(name = "Waterfront", labels = scales::comma)
+ggplot(dt_, aes(as.factor(dt_$waterfront))) + geom_bar(colour = "black", aes(fill = ..count..)) + scale_fill_gradient(low = "green", high = "red") + ggtitle("Waterfront Properties Proportion") + scale_x_discrete(name = "Waterfront", labels = c("Not waterfront", "Is waterfront")) + scale_y_continuous(name = "Waterfront", labels = scales::comma)
 
 # Let's look at correlation to price
 
-ggplot(dt_, aes(y = dt_$price, x = as.factor(dt_$waterfront))) + geom_boxplot() + ggtitle("Price ~ Waterfront property") + scale_y_continuous(name = "Price", labels = scales::comma) + scale_x_discrete(name = "Waterfront", labels = c("Not Waterfront", "Is Waterfront"))
+ggplot(dt_, aes(y = dt_$price, x = as.factor(dt_$waterfront),fill = as.factor(dt_$waterfront))) + geom_boxplot() + ggtitle("Price ~ Waterfront property") + scale_y_continuous(name = "Price", labels = scales::comma) + scale_x_discrete(name = "Waterfront", labels = c("Not Waterfront", "Is Waterfront")) + guides(fill = FALSE)
 # The mean of waterfront houses are clearlier higher.
 
 fe_$waterfrontFactor <- as.factor(fe_$waterfront)
@@ -566,7 +566,7 @@ udf_fe_inter_DescribeBathRoomFeatures <- function(dataSet){
     
     
     dataSet[,'bedrooms'] <- as.factor(dataSet[,'bedrooms'])
-    dataSet[,'bathrooms'] <- as.factor(dataSet[,'bathrooms'])
+   # dataSet[,'bathrooms'] <- as.factor(dataSet[,'bathrooms'])
     dataSet[,'waterfront'] <- as.factor(dataSet[,'waterfront'])
     dataSet[,'condition'] <- as.factor(dataSet[,'condition'])
     dataSet[,'grade'] <- as.factor(dataSet[,'grade'])
@@ -574,10 +574,10 @@ udf_fe_inter_DescribeBathRoomFeatures <- function(dataSet){
     dataSet[,'zipcode'] <- as.factor(dataSet[,'zipcode'])
     
     
-    # dataSet[,'fullBathroom'] <- as.factor(dataSet[,'fullBathroom'])
-    # dataSet[,'halfBathroom'] <- as.factor(dataSet[,'halfBathroom'])
-    # dataSet[,'quarterBathroom'] <- as.factor(dataSet[,'quarterBathroom'])
-    # dataSet[,'threeQuarterBathroom'] <- as.factor(dataSet[,'threeQuarterBathroom'])
+     dataSet[,'fullBathroom'] <- as.factor(dataSet[,'fullBathroom'])
+     dataSet[,'halfBathroom'] <- as.factor(dataSet[,'halfBathroom'])
+     dataSet[,'quarterBathroom'] <- as.factor(dataSet[,'quarterBathroom'])
+     dataSet[,'threeQuarterBathroom'] <- as.factor(dataSet[,'threeQuarterBathroom'])
     
     
     return(dataSet)
@@ -593,3 +593,6 @@ mdl_3 <- lm(price ~ .,data =fe_tr)
 
 
 errMtx_ <- udf_utils_ModelScoreHelper(mdl_3,"BathroomSplit",trainFeature = fe_tr[,-1],testFeature = fe_ts[,-1],trainLabel = fe_tr$price,testLabel = fe_ts$price,trackMatrix = errMtx_)
+
+
+summary(mdl_3)
